@@ -9,6 +9,8 @@ Usage:
 import os
 import re
 import subprocess
+import tempfile
+import stat
 from pathlib import Path
 from typing import List
 
@@ -64,7 +66,7 @@ def strip_llm_wrapper(text: str) -> str:
     return text
 
 from .detect import should_compress
-from .validate import validate
+from .validate import validate_text
 
 MAX_RETRIES = 2
 
@@ -84,6 +86,8 @@ def call_claude(prompt: str) -> str:
                 max_tokens=8192,
                 messages=[{"role": "user", "content": prompt}],
             )
+            if msg.stop_reason == "max_tokens":
+                raise RuntimeError("Compression output truncated; input unchanged")
             return strip_llm_wrapper(msg.content[0].text.strip())
         except ImportError:
             pass  # anthropic not installed, fall back to CLI
@@ -95,6 +99,7 @@ def call_claude(prompt: str) -> str:
             text=True,
             capture_output=True,
             check=True,
+            timeout=180,
         )
         return strip_llm_wrapper(result.stdout.strip())
     except subprocess.CalledProcessError as e:
@@ -179,76 +184,47 @@ def compress_file(filepath: Path) -> bool:
         print("Skipping (not natural language)")
         return False
 
-    original_text = filepath.read_text(errors="ignore")
+    original_bytes = filepath.read_bytes()
+    original_text = original_bytes.decode("utf-8")
     backup_path = filepath.with_name(filepath.stem + ".original.md")
-
-    if not original_text.strip():
-        print("❌ Refusing to compress: file is empty or whitespace-only.")
+    if not original_text.strip() or backup_path.exists():
         return False
 
-    # Check if backup already exists to prevent accidental overwriting
-    if backup_path.exists():
-        print(f"⚠️ Backup file already exists: {backup_path}")
-        print("The original backup may contain important content.")
-        print("Aborting to prevent data loss. Please remove or rename the backup file if you want to proceed.")
-        return False
-
-    # Step 1: Compress
-    print("Compressing with Claude...")
     compressed = call_claude(build_compress_prompt(original_text))
-
-    if compressed is None or not compressed.strip():
-        print("❌ Compression aborted: Claude returned an empty response.")
-        print("   Original file is untouched (no backup created).")
-        return False
-
-    if compressed.strip() == original_text.strip():
-        print("❌ Compression aborted: output is identical to input.")
-        print("   Likely causes: Claude refused, returned the prompt verbatim, or the file is")
-        print("   already in caveman form. Original file is untouched (no backup created).")
-        return False
-
-    # Save original as backup, then verify the backup readback before
-    # touching the input file. If the filesystem dropped bytes (encoding,
-    # antivirus, disk full), unlink the bad backup and abort instead of
-    # leaving the user with a corrupt backup + compressed primary.
-    backup_path.write_text(original_text)
-    backup_readback = backup_path.read_text(errors="ignore")
-    if backup_readback != original_text:
-        print(f"❌ Backup write verification failed: {backup_path}")
-        print("   In-memory original differs from on-disk backup. Aborting before touching the input file.")
-        try:
-            backup_path.unlink()
-        except OSError:
-            pass
-        return False
-    filepath.write_text(compressed)
-
-    # Step 2: Validate + Retry
     for attempt in range(MAX_RETRIES):
-        print(f"\nValidation attempt {attempt + 1}")
-
-        result = validate(backup_path, filepath)
-
-        if result.is_valid:
-            print("Validation passed")
-            break
-
-        print("❌ Validation failed:")
-        for err in result.errors:
-            print(f"   - {err}")
-
-        if attempt == MAX_RETRIES - 1:
-            # Restore original on failure
-            filepath.write_text(original_text)
-            backup_path.unlink(missing_ok=True)
-            print("❌ Failed after retries — original restored")
+        if not isinstance(compressed, str) or not compressed.strip():
             return False
+        if compressed.strip() == original_text.strip():
+            return False
+        if re.search(r"(?i)\b(?:sorry|i cannot|i can't|unable to (?:process|compress)|as an ai)\b", compressed):
+            return False
+        result = validate_text(original_text, compressed)
+        if result.is_valid:
+            break
+        if attempt == MAX_RETRIES - 1:
+            return False
+        compressed = call_claude(build_fix_prompt(original_text, compressed, result.errors))
 
-        print("Fixing with Claude...")
-        compressed = call_claude(
-            build_fix_prompt(original_text, compressed, result.errors)
-        )
-        filepath.write_text(compressed)
-
+    # Commit only validated output. Failures during API/validation never touch input.
+    mode = stat.S_IMODE(filepath.stat().st_mode)
+    fd, temporary = tempfile.mkstemp(prefix=".caveman-", dir=filepath.parent)
+    temp_path = Path(temporary)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as output:
+            output.write(compressed)
+            output.flush()
+            os.fsync(output.fileno())
+        os.chmod(temp_path, mode)
+        if filepath.read_bytes() != original_bytes:
+            raise RuntimeError("Input changed during compression; refusing overwrite")
+        # Exclusive creation protects existing backups, including concurrent runs.
+        with backup_path.open("xb") as backup:
+            backup.write(original_bytes)
+            backup.flush()
+            os.fsync(backup.fileno())
+        if backup_path.read_bytes() != original_bytes:
+            raise RuntimeError("Backup verification failed; input unchanged")
+        os.replace(temp_path, filepath)
+    finally:
+        temp_path.unlink(missing_ok=True)
     return True

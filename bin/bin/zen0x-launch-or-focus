@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+class="${1:?class required}"
+command="${2:?launch command required}"
+address="$(hyprctl -j clients | jq -r --arg class "$class" '[.[] | select(.class == $class)][0].address // empty')"
+if [[ -n "$address" ]]; then
+  hyprctl dispatch focuswindow "address:$address"
+else
+  exec bash -c "$command"
+fi

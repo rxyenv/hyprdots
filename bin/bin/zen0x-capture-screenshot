@@ -1,45 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
 mode="${1:-region}"
-shots_dir="${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots"
+shots_dir="${XDG_PICTURES_DIR:-$(xdg-user-dir PICTURES 2>/dev/null || printf '%s/Pictures' "$HOME")}/Screenshots"
+case "$mode" in region|smart|window|fullscreen) ;; *) printf 'Unknown mode: %s\n' "$mode" >&2; exit 1 ;; esac
 mkdir -p "$shots_dir"
-
-satty_args=(
-  --filename -
-  --output-filename "$shots_dir/%Y-%m-%d_%H-%M-%S.png"
-  --copy-command wl-copy
-  --actions-on-enter save-to-clipboard,save-to-file,exit
-  --early-exit save copy
-  --resize 900x600
-  --floating-hack
-)
-
-capture_region() {
-  if command -v hyprshot >/dev/null 2>&1; then
-    hyprshot -m region --raw
-  else
-    grim -g "$(slurp)" -
-  fi
-}
-
-capture_smart() {
-  if command -v hyprshot >/dev/null 2>&1; then
-    hyprshot -m region --raw
-  else
-    grim -g "$(slurp)" -
-  fi
-}
-
+image="$(mktemp --suffix=.png)"
+trap 'rm -f -- "$image"' EXIT
 case "$mode" in
-  region)
-    capture_region | satty "${satty_args[@]}"
-    ;;
-  smart)
-    capture_smart | satty "${satty_args[@]}"
-    ;;
-  *)
-    printf 'Unknown mode: %s\n' "$mode" >&2
-    exit 1
-    ;;
+  region|smart)
+    if command -v hyprshot >/dev/null 2>&1; then
+      hyprshot -m region --raw > "$image"
+    else
+      geometry="$(slurp)" || exit 0
+      [[ -n "$geometry" ]] || exit 0
+      grim -g "$geometry" "$image"
+    fi ;;
+  window) hyprshot -m window --raw > "$image" ;;
+  fullscreen) grim "$image" ;;
 esac
+[[ -s "$image" ]] || exit 0
+satty --filename "$image" \
+  --output-filename "$shots_dir/%Y-%m-%d_%H-%M-%S-%f.png" \
+  --copy-command wl-copy --actions-on-enter save-to-clipboard,save-to-file,exit \
+  --resize 900x600 --floating-hack

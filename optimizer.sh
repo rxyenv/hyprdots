@@ -12,6 +12,8 @@ success() { printf "${GREEN}✓  %s${NC}\n" "$*"; }
 warn()    { printf "${YELLOW}!  %s${NC}\n" "$*"; }
 die()     { printf "${RED}✗  %s${NC}\n" "$*" >&2; exit 1; }
 
+WRITE_FAILURES=0
+
 SCRIPT_NAME="$(basename "$0")"
 
 usage() {
@@ -42,7 +44,11 @@ write_if_exists() {
     local value="$1"
     local path="$2"
     [[ -e "$path" ]] || return 1
-    printf '%s' "$value" >"$path"
+    if ! printf '%s' "$value" >"$path"; then
+        warn "Failed to write $path"
+        WRITE_FAILURES=$((WRITE_FAILURES + 1))
+        return 1
+    fi
 }
 
 set_cpu_governor() {
@@ -106,7 +112,7 @@ set_vm_profile() {
     write_if_exists "$dirty_bg" /proc/sys/vm/dirty_background_ratio || true
     write_if_exists "$dirty" /proc/sys/vm/dirty_ratio || true
     write_if_exists "$laptop_mode" /proc/sys/vm/laptop_mode || true
-    success "VM tunables updated"
+    info "VM tunables attempted; write failures reported above"
 }
 
 set_thp() {
@@ -114,8 +120,7 @@ set_thp() {
     local path="/sys/kernel/mm/transparent_hugepage/enabled"
 
     if [[ -e "$path" ]]; then
-        printf '%s' "$mode" >"$path"
-        success "THP -> $mode"
+        if write_if_exists "$mode" "$path"; then success "THP -> $mode"; fi
     else
         warn "THP control not found"
     fi
@@ -154,8 +159,9 @@ set_block_scheduler() {
         esac
 
         [[ -n "$chosen" ]] || continue
-        write_if_exists "$chosen" "$dev" || true
-        success "I/O scheduler $(basename "$(dirname "$(dirname "$dev")")") -> $chosen"
+        if write_if_exists "$chosen" "$dev"; then
+            success "I/O scheduler $(basename "$(dirname "$(dirname "$dev")")") -> $chosen"
+        fi
     done
     shopt -u nullglob
 }
@@ -263,6 +269,7 @@ main() {
             die "Unknown mode: $mode"
             ;;
     esac
+    (( WRITE_FAILURES == 0 )) || die "$WRITE_FAILURES tuning writes failed"
 }
 
 main "$@"

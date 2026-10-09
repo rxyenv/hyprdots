@@ -1,0 +1,2 @@
+# UWSM services and desktop apps must see the user-local helper scripts.
+export PATH="$HOME/.local/bin:$PATH"

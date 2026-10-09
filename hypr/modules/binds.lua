@@ -1,9 +1,9 @@
-local programs = require("programs")
+local programs = require("modules/programs")
 
 local mainMod = "SUPER"
-hl.bind(mainMod .. " + SHIFT + Return", hl.dsp.exec_cmd(programs.terminal))
-hl.bind(mainMod .. " + Return",
-  hl.dsp.exec_cmd(programs.terminal .. " --app-id org.zen0x.tmux -e tmux new-session -A -s main"))
+hl.bind(mainMod .. " + Return", hl.dsp.exec_cmd(programs.terminal))
+hl.bind(mainMod .. " + SHIFT + Return",
+  hl.dsp.exec_cmd(programs.terminal .. " --class org.zen0x.tmux -e tmux new-session -A -s main"))
 hl.bind(mainMod .. " + W", hl.dsp.window.close())
 hl.bind(
   mainMod .. " + SHIFT + M",
@@ -11,29 +11,21 @@ hl.bind(
 )
 hl.bind(
   mainMod .. " + Escape",
-  hl.dsp.exec_cmd("abyssal-shell toggleSession")
+  hl.dsp.exec_cmd("noctalia msg panel-toggle session")
 )
 hl.bind(mainMod .. " + E", hl.dsp.exec_cmd("zen0x-launch-or-focus nautilus 'uwsm-app -- nautilus'"))
 hl.bind(mainMod .. " + B", hl.dsp.exec_cmd(programs.browser))
 hl.bind(mainMod .. " + SHIFT + F", hl.dsp.window.fullscreen())
-hl.bind(mainMod .. " + Space", hl.dsp.exec_cmd("abyssal-shell toggleLauncher"))
-hl.bind(mainMod .. " + SHIFT + Space", hl.dsp.exec_cmd("abyssal-shell toggleWallpaper"))
-hl.bind(mainMod .. " + Q", hl.dsp.exec_cmd("abyssal-shell toggleControlCenter"))
-hl.bind(mainMod .. " + CTRL + N", hl.dsp.exec_cmd("abyssal-shell toggleNotifications"))
+hl.bind(mainMod .. " + Space", hl.dsp.exec_cmd("noctalia msg panel-toggle launcher"))
+hl.bind(mainMod .. " + SHIFT + Space", hl.dsp.exec_cmd("noctalia msg panel-toggle wallpaper"))
+hl.bind(mainMod .. " + Q", hl.dsp.exec_cmd("noctalia msg panel-toggle control-center"))
+hl.bind(mainMod .. " + CTRL + N", hl.dsp.exec_cmd("noctalia msg panel-toggle control-center notifications"))
 
 hl.bind(mainMod .. " + SHIFT + C", hl.dsp.exec_cmd("zen0x-launch-or-focus Code 'uwsm-app -- code'"))
 hl.bind(mainMod .. " + SHIFT + D", hl.dsp.exec_cmd("zen0x-launch-or-focus vesktop 'uwsm-app -- vesktop'"))
 hl.bind(mainMod .. " + SHIFT + A", hl.dsp.exec_cmd("zen0x-launch-audio"))
 hl.bind(mainMod .. " + SHIFT + B", hl.dsp.exec_cmd("zen0x-launch-bluetooth"))
 hl.bind(mainMod .. " + CTRL + W", hl.dsp.exec_cmd("zen0x-launch-wifi"))
-hl.bind(mainMod .. " + SHIFT + N",
-  hl.dsp.exec_cmd("uwsm-app -- helium --class=zen0x-webapp --app=https://www.netflix.com/"))
-hl.bind(mainMod .. " + SHIFT + Y",
-  hl.dsp.exec_cmd("uwsm-app -- helium --class=zen0x-webapp --app=https://www.youtube.com/"))
-hl.bind(mainMod .. " + SHIFT + R",
-  hl.dsp.exec_cmd("uwsm-app -- helium --class=zen0x-webapp --app=https://www.reddit.com/"))
-hl.bind(mainMod .. " + SHIFT + W",
-  hl.dsp.exec_cmd("uwsm-app -- helium --class=zen0x-webapp --app=https://web.whatsapp.com/"))
 
 hl.bind(mainMod .. " + H", hl.dsp.focus({ direction = "l" }))
 hl.bind(mainMod .. " + L", hl.dsp.focus({ direction = "r" }))
@@ -98,6 +90,8 @@ hl.bind(mainMod .. " + G", hl.dsp.group.toggle())
 hl.bind(mainMod .. " + Tab", function()
   if hl.plugin and hl.plugin.scrolloverview then
     hl.plugin.scrolloverview.overview("toggle")
+  else
+    hl.dispatch(hl.dsp.exec_cmd("noctalia msg panel-toggle launcher"))
   end
 end)
 
@@ -109,18 +103,15 @@ hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag())
 hl.bind(mainMod .. " + mouse:273", hl.dsp.window.resize())
 
 hl.bind("XF86AudioRaiseVolume",
-  hl.dsp.exec_cmd(
-    "wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+ && qs -p $HOME/.config/quickshell/abyssal ipc call osd volume"),
+  hl.dsp.exec_cmd("noctalia msg volume-up"),
   { locked = true })
 hl.bind("XF86AudioLowerVolume",
-  hl.dsp.exec_cmd(
-    "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%- && qs -p $HOME/.config/quickshell/abyssal ipc call osd volume"),
+  hl.dsp.exec_cmd("noctalia msg volume-down"),
   { locked = true })
 hl.bind("XF86AudioMute",
-  hl.dsp.exec_cmd(
-    "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle && qs -p $HOME/.config/quickshell/abyssal ipc call osd volume"),
+  hl.dsp.exec_cmd("noctalia msg volume-mute"),
   { locked = true })
-hl.bind("XF86AudioMicMute", hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"), { locked = true })
+hl.bind("XF86AudioMicMute", hl.dsp.exec_cmd("noctalia msg mic-mute"), { locked = true })
 hl.bind("XF86MonBrightnessUp", hl.dsp.exec_cmd("zen0x-brightness-display +5%"), { locked = true })
 hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("zen0x-brightness-display 5%-"), { locked = true })
 

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+for browser in brave-origin brave brave-browser; do
+  if command -v "$browser" >/dev/null 2>&1; then exec uwsm app -- "$browser" "$@"; fi
+done
+printf 'Install brave-bin or Brave Origin to use this shortcut.\n' >&2
+exit 127

@@ -16,11 +16,11 @@ hl.config({
   },
 })
 
--- Touchpad: re-enable accel (global is flat for mouse)
-hl.device({
-  name = ".*touchpad.*",
-  accel_profile = "adaptive",
-})
+-- Exact device names are required; set this for your laptop when needed.
+local touchpad = os.getenv("HYPR_TOUCHPAD_NAME")
+if touchpad and touchpad ~= "" then
+  hl.device({ name = touchpad, accel_profile = "adaptive" })
+end
 
 -- Touchpad gestures
 hl.gesture({ fingers = 3, direction = "horizontal", action = "workspace" })

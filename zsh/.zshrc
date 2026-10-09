@@ -1,3 +1,4 @@
+[[ -r "${ZDOTDIR:-$HOME}/.zshenv" ]] && source "${ZDOTDIR:-$HOME}/.zshenv"
 [[ -o interactive ]] && fastfetch
 
 # ------------------------------------------------------------
@@ -43,8 +44,9 @@ zstyle ':completion:*' menu select
 zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
 zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
 zstyle ':completion:*:descriptions' format ''
-zstyle ':completion:*:messages' format ''
-zstyle ':completion:*:warnings' format ''
+# A space hides labels while retaining the argument fzf-tab passes to compadd -x.
+zstyle ':completion:*:messages' format ' '
+zstyle ':completion:*:warnings' format ' '
 
 # Useful shell behavior
 setopt auto_cd
@@ -168,7 +170,7 @@ alias mv='mv -iv'
 alias rm='rm -I'
 alias grep='grep --color=auto'
 alias vim='nvim'
-alias cat='bat'
+command -v bat >/dev/null 2>&1 && alias cat='bat'
 alias codex='codex "/caveman ultra"'
 
 # Aliases: Git
@@ -210,7 +212,5 @@ extract() {
   esac
 }
 
-export PATH="/home/aman/.local/bin:$PATH"
-export PATH="/home/aman/.cargo/bin:$PATH"
-export PATH=$PATH:/home/aman/.spicetify
-export PATH=$PATH:~/.spicetify
+typeset -U path
+path=("$HOME/.local/bin" "$HOME/.cargo/bin" "$HOME/.spicetify" $path)

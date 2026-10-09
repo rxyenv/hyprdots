@@ -1,178 +1,80 @@
 #!/usr/bin/env bash
+# Deploy individual links with rollback; never traverse foreign directory links.
 set -euo pipefail
-
 DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-STOW_BACKUP_ROOT="${STOW_BACKUP_ROOT:-$HOME/.local/state/zen0x-stow-backups}"
-STOW_TIMESTAMP="${STOW_TIMESTAMP:-$(date +%Y%m%d-%H%M%S)}"
-STOW_BACKUP_DIR="$STOW_BACKUP_ROOT/$STOW_TIMESTAMP"
 HOME_TARGET="${HOME_TARGET:-$HOME}"
-CONFIG_ROOT_TARGET="${CONFIG_ROOT_TARGET:-$HOME/.config}"
-GREETD_TARGET="${GREETD_TARGET:-/etc/greetd}"
-BACKUP_USED=false
-
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
-info()    { printf "${CYAN}:: %s${NC}\n" "$*"; }
-success() { printf "${GREEN}✓  %s${NC}\n" "$*"; }
-warn()    { printf "${YELLOW}!  %s${NC}\n" "$*"; }
-die()     { printf "${RED}✗  %s${NC}\n" "$*" >&2; exit 1; }
-
-command -v stow >/dev/null 2>&1 || die "stow is required."
-command -v realpath >/dev/null 2>&1 || die "realpath is required."
-
-ensure_backup_dir() {
-    if [[ "$BACKUP_USED" == false ]]; then
-        mkdir -p "$STOW_BACKUP_DIR"
-        BACKUP_USED=true
+CONFIG_ROOT_TARGET="${CONFIG_ROOT_TARGET:-${XDG_CONFIG_HOME:-$HOME/.config}}"
+BIN_ROOT_TARGET="${BIN_ROOT_TARGET:-$HOME/.local}"
+STOW_BACKUP_ROOT="${STOW_BACKUP_ROOT:-$HOME/.local/state/zen0x-stow-backups}"
+mkdir -p "$STOW_BACKUP_ROOT"
+STOW_BACKUP_DIR="$(mktemp -d "$STOW_BACKUP_ROOT/${STOW_TIMESTAMP:-$(date +%Y%m%d-%H%M%S)}.XXXXXX")"
+declare -a moved_paths=() saved_paths=() installed_links=() created_dirs=()
+committed=false
+rollback() {
+    local status=$? i
+    if [[ "$committed" != true ]]; then
+        for ((i=${#installed_links[@]}-1; i>=0; i--)); do
+            unlink "${installed_links[i]}" || true
+        done
+        for ((i=${#created_dirs[@]}-1; i>=0; i--)); do
+            rmdir -- "${created_dirs[i]}" || true
+        done
+        for ((i=${#moved_paths[@]}-1; i>=0; i--)); do
+            mv -T -- "${saved_paths[i]}" "${moved_paths[i]}" || printf 'Restore manually: %s → %s\n' "${saved_paths[i]}" "${moved_paths[i]}" >&2
+        done
+    fi
+    exit "$status"
+}
+trap rollback EXIT
+backup() {
+    local path="$1" saved="$STOW_BACKUP_DIR/${#moved_paths[@]}"
+    mv -T -- "$path" "$saved"
+    moved_paths+=("$path"); saved_paths+=("$saved")
+    printf '%s\0%s\0' "$path" "$saved" >> "$STOW_BACKUP_DIR/manifest.nul"
+}
+ensure_dir() {
+    local path="$1"
+    [[ "$path" == / ]] && return 0
+    ensure_dir "$(dirname "$path")"
+    if [[ -L "$path" || ( -e "$path" && ! -d "$path" ) ]]; then backup "$path"; fi
+    if [[ ! -d "$path" ]]; then
+        mkdir -- "$path"
+        created_dirs+=("$path")
     fi
 }
-
-path_exists() {
-    local use_sudo="$1"
-    local path="$2"
-
-    if [[ "$use_sudo" == true ]]; then
-        sudo test -e "$path" || sudo test -L "$path"
-    else
-        [[ -e "$path" || -L "$path" ]]
-    fi
+deploy_package() {
+    local package="$1" target="$2" source rel dest
+    [[ -d "$DOTFILES_DIR/$package" ]] || return 0
+    ensure_dir "$target"
+    while IFS= read -r -d '' source; do
+        rel="${source#"$DOTFILES_DIR/$package/"}"
+        case "$rel" in README*|LICENSE*|.gitignore|.stow-local-ignore|stylua.toml) continue ;; esac
+        dest="$target/$rel"
+        ensure_dir "$(dirname "$dest")"
+        case "$package/$rel" in
+            hypr/noctalia.lua|kitty/themes/noctalia.conf)
+                if [[ -e "$dest" ]]; then continue; fi
+                if [[ -L "$dest" ]]; then backup "$dest"; fi
+                cp -- "$source" "$dest"
+                installed_links+=("$dest")
+                continue ;;
+        esac
+        if [[ -L "$dest" && "$(readlink "$dest")" == "$source" ]]; then continue; fi
+        if [[ -e "$dest" || -L "$dest" ]]; then backup "$dest"; fi
+        ln -s -- "$source" "$dest"
+        installed_links+=("$dest")
+    done < <(find "$DOTFILES_DIR/$package" \( -type f -o -type l \) -print0)
 }
-
-path_is_dir() {
-    local use_sudo="$1"
-    local path="$2"
-
-    if [[ "$use_sudo" == true ]]; then
-        sudo test -d "$path"
-    else
-        [[ -d "$path" ]]
-    fi
-}
-
-path_is_symlink() {
-    local use_sudo="$1"
-    local path="$2"
-
-    if [[ "$use_sudo" == true ]]; then
-        sudo test -L "$path"
-    else
-        [[ -L "$path" ]]
-    fi
-}
-
-read_symlink() {
-    local use_sudo="$1"
-    local path="$2"
-
-    if [[ "$use_sudo" == true ]]; then
-        sudo readlink "$path"
-    else
-        readlink "$path"
-    fi
-}
-
-backup_path() {
-    local use_sudo="$1"
-    local path="$2"
-    local rel="${path#/}"
-    local backup_path="$STOW_BACKUP_DIR/$rel"
-
-    ensure_backup_dir
-    mkdir -p "$(dirname "$backup_path")"
-
-    if [[ "$use_sudo" == true ]]; then
-        sudo mkdir -p "$(dirname "$backup_path")"
-        sudo mv "$path" "$backup_path"
-    else
-        mv "$path" "$backup_path"
-    fi
-
-    warn "Moved existing path to backup: $path"
-}
-
-prepare_conflicts() {
-    local package="$1"
-    local target_root="$2"
-    local use_sudo="$3"
-    local package_root="$DOTFILES_DIR/$package"
-
-    while IFS= read -r -d '' source_path; do
-        local rel_path="${source_path#$package_root/}"
-        local target_path="$target_root/$rel_path"
-
-        if [[ -d "$source_path" && ! -L "$source_path" ]]; then
-            if path_exists "$use_sudo" "$target_path" && ! path_is_dir "$use_sudo" "$target_path"; then
-                backup_path "$use_sudo" "$target_path"
-            fi
-            continue
-        fi
-
-        if ! path_exists "$use_sudo" "$target_path"; then
-            continue
-        fi
-
-        local resolved_existing expected_target
-        resolved_existing="$(realpath -m "$target_path")"
-        expected_target="$(realpath -m "$source_path")"
-
-        if [[ "$resolved_existing" == "$expected_target" ]]; then
-            continue
-        fi
-
-        if path_is_symlink "$use_sudo" "$target_path"; then
-            local link_target resolved_target
-            link_target="$(read_symlink "$use_sudo" "$target_path")"
-            resolved_target="$(realpath -m "$(dirname "$target_path")/$link_target")"
-
-            if [[ "$resolved_target" == "$expected_target" ]]; then
-                continue
-            fi
-        fi
-
-        backup_path "$use_sudo" "$target_path"
-    done < <(find "$package_root" -mindepth 1 -print0)
-}
-
-stow_package() {
-    local package="$1"
-    local target_root="$2"
-    local use_sudo="$3"
-    local package_root="$DOTFILES_DIR/$package"
-    local -a stow_cmd=(stow --dir="$DOTFILES_DIR" --target="$target_root" --restow "$package")
-    local -a simulate_cmd=(stow --simulate --dir="$DOTFILES_DIR" --target="$target_root" --restow "$package")
-
-    [[ -d "$package_root" ]] || { warn "Skipping missing package: $package"; return 0; }
-
-    if [[ "$use_sudo" == true ]]; then
-        info "$package → $target_root (sudo)"
-        sudo mkdir -p "$target_root"
-    else
-        info "$package → $target_root"
-        mkdir -p "$target_root"
-    fi
-
-    prepare_conflicts "$package" "$target_root" "$use_sudo"
-
-    if [[ "$use_sudo" == true ]]; then
-        sudo "${simulate_cmd[@]}" >/dev/null
-        sudo "${stow_cmd[@]}"
-    else
-        "${simulate_cmd[@]}" >/dev/null
-        "${stow_cmd[@]}"
-    fi
-
-    success "Stowed $package"
-}
-
-stow_package "zsh" "$HOME_TARGET" false
-stow_package "bin" "/usr" true
-
-CONFIG_PACKAGES=(fastfetch hypr kitty nvim wireplumber xdg-desktop-portal)
-for pkg in "${CONFIG_PACKAGES[@]}"; do
-    stow_package "$pkg" "$CONFIG_ROOT_TARGET/$pkg" false
+# Explicit grouping keeps find's -print0 active for both regular files and links.
+# Paths are absolute, so deployment works independently of the caller's cwd.
+DOTFILES_DIR="$(realpath "$DOTFILES_DIR")"
+HOME_TARGET="$(realpath -ms "$HOME_TARGET")"
+CONFIG_ROOT_TARGET="$(realpath -ms "$CONFIG_ROOT_TARGET")"
+BIN_ROOT_TARGET="$(realpath -ms "$BIN_ROOT_TARGET")"
+deploy_package zsh "$HOME_TARGET"
+deploy_package bin "$BIN_ROOT_TARGET"
+for pkg in fastfetch hypr kitty nvim wireplumber xdg-desktop-portal uwsm; do
+    deploy_package "$pkg" "$CONFIG_ROOT_TARGET/$pkg"
 done
-
-if [[ "$BACKUP_USED" == true ]]; then
-    success "Backups saved to $STOW_BACKUP_DIR"
-fi
-
-success "Stow complete"
+committed=true
+printf 'Deployment complete. Backups: %s\n' "$STOW_BACKUP_DIR"

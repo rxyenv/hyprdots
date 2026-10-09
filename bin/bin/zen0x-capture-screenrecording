@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+mode="${1:-region}"
+case "$mode" in region|fullscreen) ;; *) printf 'Unknown mode: %s\n' "$mode" >&2; exit 1 ;; esac
+state="${XDG_RUNTIME_DIR:?}/zen0x-recording"
+exec 9> "$state.lock"
+flock 9
+if [[ -f "$state.pid" ]]; then
+  read -r pid < "$state.pid"
+  if [[ "$pid" =~ ^[0-9]+$ && -r "/proc/$pid/comm" && "$(cat "/proc/$pid/comm")" == wf-recorder ]]; then
+    kill -INT "$pid"
+    exit 0
+  fi
+  rm -f "$state.pid"
+fi
+args=()
+if [[ "$mode" == region ]]; then
+  geometry="$(slurp)" || exit 0
+  [[ -n "$geometry" ]] || exit 0
+  args=(-g "$geometry")
+fi
+videos="${XDG_VIDEOS_DIR:-$(xdg-user-dir VIDEOS 2>/dev/null || printf '%s/Videos' "$HOME")}/Recordings"
+mkdir -p "$videos"
+wf-recorder "${args[@]}" -f "$videos/$(date +%Y-%m-%d_%H-%M-%S-%N).mp4" 9>&- &
+pid=$!
+printf '%s\n' "$pid" > "$state.pid"
+flock -u 9
+cleanup() {
+  flock 9
+  if [[ -f "$state.pid" && "$(cat "$state.pid")" == "$pid" ]]; then rm -f "$state.pid"; fi
+}
+trap cleanup EXIT
+wait "$pid"

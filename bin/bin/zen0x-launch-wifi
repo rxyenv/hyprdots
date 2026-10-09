@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+if command -v nmtui >/dev/null 2>&1 && systemctl is-active --quiet NetworkManager; then
+  exec uwsm app -- kitty --class org.zen0x.impala -e nmtui
+fi
+if ! systemctl is-active --quiet iwd; then
+  printf 'Wi-Fi helper needs active NetworkManager (nmtui) or iwd (impala).\n' >&2
+  exit 1
+fi
+exec zen0x-launch-or-focus org.zen0x.impala "uwsm app -- kitty --class org.zen0x.impala -e impala"

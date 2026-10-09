@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+set -euo pipefail
+exec brightnessctl set "${1:?brightness change required}"

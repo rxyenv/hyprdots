@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+set -euo pipefail
+exec zen0x-launch-or-focus org.zen0x.wiremix "uwsm app -- kitty --class org.zen0x.wiremix -e wiremix"

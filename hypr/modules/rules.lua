@@ -20,12 +20,20 @@ hl.layer_rule({
 })
 
 hl.layer_rule({
-  name = "abyssal-shell",
-  match = { namespace = "^abyssal-.*$" },
+  name = "noctalia",
+  match = { namespace = "^noctalia-(bar-.+|notification|dock|panel|attached-panel|osd|window-switcher)$" },
   no_anim = true,
   blur = true,
   blur_popups = true,
-  ignore_alpha = 0.1,
+  ignore_alpha = 0.5,
+})
+
+hl.window_rule({
+  name = "noctalia-settings",
+  match = { class = "^dev\\.noctalia\\.Noctalia$" },
+  float = true,
+  center = true,
+  size = { 1080, 920 },
 })
 
 -- ── Global window behavior ─────────────────────────────────
@@ -177,19 +185,13 @@ hl.window_rule({
   workspace = "4",
 })
 
-hl.window_rule({
-  name = "webapps-on-workspace-6",
-  match = { class = "^chrome-.*-Default$" },
-  workspace = "6",
-})
-
 local workspace_assignments = {
-  { ws = "1", match = { class = "^(helium|Helium)$" } },
-  { ws = "2", match = { class = "^(foot|footclient|org\\.zen0x\\.tmux|Alacritty|WezTerm)$" } },
+  { ws = "1", match = { class = "^(brave-origin|Brave-origin|brave-browser|Brave-browser|brave|Brave)$" } },
+  { ws = "2", match = { class = "^(foot|footclient|org\\.zen0x\\.tmux|Alacritty|WezTerm|kitty)$" } },
   { ws = "3", match = { class = "^code$" } },
   { ws = "4", match = { class = "^(Spotify)$" } },
   { ws = "5", match = { class = "^(steam|Steam|heroic|Heroic)$" } },
-  { ws = "6", match = { title = "^(.*%.exe|.*game|.*Game)$" } },
+  { ws = "6", match = { title = "^(.*\\.exe|.*game|.*Game)$" } },
 }
 
 for _, a in ipairs(workspace_assignments) do

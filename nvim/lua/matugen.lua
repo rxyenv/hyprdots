@@ -38,14 +38,17 @@ function M.setup()
   hi('TelescopeMatching',       { fg = '#c7bfff',             bold = true })
 end
 
- -- Register a signal handler for SIGUSR1 (matugen updates)
- local signal = vim.uv.new_signal()
- signal:start(
-   'sigusr1',
-   vim.schedule_wrap(function()
-     package.loaded['matugen'] = nil
-     require('matugen').setup()
-   end)
- )
-
- return M
+-- Keep one watcher across module reloads.
+if not _G.zen0x_matugen_signal then
+  local signal = vim.uv.new_signal()
+  _G.zen0x_matugen_signal = signal
+  signal:start('sigusr1', vim.schedule_wrap(function()
+    package.loaded['matugen'] = nil
+    require('matugen').setup()
+  end))
+  vim.api.nvim_create_autocmd('VimLeavePre', {
+    once = true,
+    callback = function() signal:stop(); signal:close() end,
+  })
+end
+return M

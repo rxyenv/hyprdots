@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+set -euo pipefail
+exec zen0x-launch-or-focus org.zen0x.bluetui "uwsm app -- kitty --class org.zen0x.bluetui -e bluetui"

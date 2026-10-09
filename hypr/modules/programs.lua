@@ -1,5 +1,5 @@
 return {
-  terminal = "footclient",
+  terminal = "kitty",
   file_manager = "nautilus",
-  browser = "uwsm-app -- zen",
+  browser = "zen0x-launch-browser",
 }

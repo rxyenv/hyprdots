@@ -28,7 +28,7 @@ class ValidationResult:
 
 
 def read_file(path: Path) -> str:
-    return path.read_text(errors="ignore")
+    return path.read_text(encoding="utf-8")
 
 
 # ---------- Extractors ----------
@@ -83,11 +83,11 @@ def extract_code_blocks(text):
 
 
 def extract_urls(text):
-    return set(URL_REGEX.findall(text))
+    return Counter(URL_REGEX.findall(text))
 
 
 def extract_paths(text):
-    return set(PATH_REGEX.findall(text))
+    return Counter(PATH_REGEX.findall(text))
 
 
 def count_bullets(text):
@@ -95,9 +95,27 @@ def count_bullets(text):
 
 
 def extract_inline_codes(text):
-    text_without_fences = re.sub(r"^```[\s\S]*?^```", "", text, flags=re.MULTILINE)
-    text_without_fences = re.sub(r"^~~~[\s\S]*?^~~~", "", text_without_fences, flags=re.MULTILINE)
-    return re.findall(r"`([^`]+)`", text_without_fences)
+    # Remove all fenced blocks using the same variable-length fence parser.
+    for block in extract_code_blocks(text):
+        text = text.replace(block, "", 1)
+    codes = []
+    i = 0
+    while i < len(text):
+        if text[i] != "`":
+            i += 1
+            continue
+        end = i
+        while end < len(text) and text[end] == "`":
+            end += 1
+        fence = text[i:end]
+        closing = re.search(r"(?<!`)" + re.escape(fence) + r"(?!`)", text[end:])
+        if closing:
+            pos = end + closing.start()
+            codes.append(text[end:pos])
+            i = pos + len(fence)
+        else:
+            i = end
+    return codes
 
 
 # ---------- Validators ----------
@@ -111,7 +129,7 @@ def validate_headings(orig, comp, result):
         result.add_error(f"Heading count mismatch: {len(h1)} vs {len(h2)}")
 
     if h1 != h2:
-        result.add_warning("Heading text/order changed")
+        result.add_error("Heading text/order changed")
 
 
 def validate_code_blocks(orig, comp, result):
@@ -135,7 +153,7 @@ def validate_paths(orig, comp, result):
     p2 = extract_paths(comp)
 
     if p1 != p2:
-        result.add_warning(f"Path mismatch: lost={p1 - p2}, added={p2 - p1}")
+        result.add_error(f"Path mismatch: lost={p1 - p2}, added={p2 - p1}")
 
 
 def validate_bullets(orig, comp, result):
@@ -163,18 +181,15 @@ def validate_inline_codes(orig, comp, result):
                 lost.add(f"{code} (lost {count - c2[code]} of {count} occurrences)")
         if lost:
             result.add_error(f"Inline code lost: {lost}")
-        if added:
-            result.add_warning(f"Inline code added: {added}")
+        if added or c2 - c1:
+            result.add_error(f"Inline code added: {c2 - c1}")
 
 
 # ---------- Main ----------
 
 
-def validate(original_path: Path, compressed_path: Path) -> ValidationResult:
+def validate_text(orig: str, comp: str) -> ValidationResult:
     result = ValidationResult()
-
-    orig = read_file(original_path)
-    comp = read_file(compressed_path)
 
     validate_headings(orig, comp, result)
     validate_code_blocks(orig, comp, result)
@@ -182,8 +197,18 @@ def validate(original_path: Path, compressed_path: Path) -> ValidationResult:
     validate_paths(orig, comp, result)
     validate_bullets(orig, comp, result)
     validate_inline_codes(orig, comp, result)
+    # Numeric facts and ordered procedures must survive compression.
+    numbers = r"(?<![\w])\d+(?:[.,]\d+)*(?:%|[a-zA-Z]+)?"
+    if Counter(re.findall(numbers, orig)) != Counter(re.findall(numbers, comp)):
+        result.add_error("Numeric facts changed")
+    if len(comp.strip()) < max(1, len(orig.strip()) // 20):
+        result.add_error("Output suspiciously short")
 
     return result
+
+
+def validate(original_path: Path, compressed_path: Path) -> ValidationResult:
+    return validate_text(read_file(original_path), read_file(compressed_path))
 
 
 # ---------- CLI ----------
@@ -211,3 +236,5 @@ if __name__ == "__main__":
         print("\nWarnings:")
         for w in res.warnings:
             print(f"  - {w}")
+
+    sys.exit(0 if res.is_valid else 1)
