@@ -18,3 +18,4 @@ zen0x_locale_init() {
 }
 zen0x_locale_init
 unfunction zen0x_locale_init
+. "$HOME/.cargo/env"
