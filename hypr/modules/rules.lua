@@ -186,7 +186,7 @@ hl.window_rule({
 })
 
 local workspace_assignments = {
-  { ws = "1", match = { class = "^(brave-origin|Brave-origin|brave-browser|Brave-browser|brave|Brave)$" } },
+  { ws = "1", match = { class = "^(brave-origin|Brave-origin|brave-browser|Brave-browser|brave|Brave|zen)$" } },
   { ws = "2", match = { class = "^(foot|footclient|org\\.zen0x\\.tmux|Alacritty|WezTerm|kitty)$" } },
   { ws = "3", match = { class = "^code$" } },
   { ws = "4", match = { class = "^(Spotify)$" } },
