@@ -38,6 +38,10 @@ PACMAN_PACKAGES=(
 
     # Wayland / WM
     hyprland uwsm hypridle hyprlock brightnessctl
+    ly
+
+    # AMD graphics / gaming (requires multilib)
+    mesa lib32-mesa vulkan-radeon lib32-vulkan-radeon steam
 
     # Launcher & terminal
     kitty
@@ -51,10 +55,17 @@ PACMAN_PACKAGES=(
 
     # Capture / OCR / media
     grim slurp satty hyprpicker hyprshot wf-recorder
+    obs-studio
     xdg-user-dirs jq tesseract tesseract-data-eng xdg-utils libnotify playerctl
 
     # Audio / brightness
     pipewire pipewire-alsa pipewire-pulse wireplumber easyeffects gnome-keyring wiremix bluetui impala iwd bluez bluez-utils
+
+    # Networking / credential storage
+    networkmanager libsecret
+
+    # GTK appearance
+    nwg-look papirus-icon-theme capitaine-cursors
 
     # Virtualization
     qemu-full libvirt virt-manager dnsmasq edk2-ovmf swtpm vde2 openbsd-netcat
@@ -70,7 +81,14 @@ PACMAN_PACKAGES=(
 
 
 AUR_PACKAGES=(
-    brave-bin
+    # Browser / chat / editor
+    brave-origin-bin vesktop visual-studio-code-bin
+
+    # Gaming
+    protonup-qt epic-games-launcher-bin
+
+    # GTK appearance / fonts
+    abyssal-gtk-theme yaru-icon-theme sunset-cursors-git maplemono-nf
 )
 
 step "Bootstrap prerequisites"
