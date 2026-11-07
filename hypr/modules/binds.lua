@@ -19,6 +19,9 @@ hl.bind(mainMod .. " + SHIFT + F", hl.dsp.window.fullscreen())
 hl.bind(mainMod .. " + Space", hl.dsp.exec_cmd("noctalia msg panel-toggle launcher"))
 hl.bind(mainMod .. " + SHIFT + Space", hl.dsp.exec_cmd("noctalia msg panel-toggle wallpaper"))
 hl.bind(mainMod .. " + Q", hl.dsp.exec_cmd("noctalia msg panel-toggle control-center"))
+hl.bind(mainMod .. " + S", hl.dsp.exec_cmd("noctalia msg panel-toggle control-center"))
+hl.bind(mainMod .. " + comma", hl.dsp.exec_cmd("noctalia msg settings-toggle"))
+hl.bind("ALT + Tab", hl.dsp.exec_cmd("noctalia msg window-switcher hold"))
 hl.bind(mainMod .. " + CTRL + N", hl.dsp.exec_cmd("noctalia msg panel-toggle control-center notifications"))
 
 hl.bind(mainMod .. " + SHIFT + C", hl.dsp.exec_cmd("zen0x-launch-or-focus Code 'uwsm-app -- code'"))
@@ -112,8 +115,8 @@ hl.bind("XF86AudioMute",
   hl.dsp.exec_cmd("noctalia msg volume-mute"),
   { locked = true })
 hl.bind("XF86AudioMicMute", hl.dsp.exec_cmd("noctalia msg mic-mute"), { locked = true })
-hl.bind("XF86MonBrightnessUp", hl.dsp.exec_cmd("zen0x-brightness-display +5%"), { locked = true })
-hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("zen0x-brightness-display 5%-"), { locked = true })
+hl.bind("XF86MonBrightnessUp", hl.dsp.exec_cmd("noctalia msg brightness-up"), { locked = true })
+hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("noctalia msg brightness-down"), { locked = true })
 
 hl.bind("XF86AudioNext", hl.dsp.exec_cmd("playerctl next"), { locked = true })
 hl.bind("XF86AudioPause", hl.dsp.exec_cmd("playerctl play-pause"), { locked = true })

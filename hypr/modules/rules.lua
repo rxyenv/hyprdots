@@ -47,7 +47,7 @@ hl.window_rule({
 hl.window_rule({
   name = "plain-floating-windows",
   match = { float = true },
-  rounding = 4,
+  rounding = 20,
   border_size = 1,
 })
 
@@ -163,6 +163,7 @@ end
 for i = 1, 5 do
   hl.workspace_rule({
     workspace = tostring(i),
+    monitor = "DP-1",
     persistent = true,
   })
 end
