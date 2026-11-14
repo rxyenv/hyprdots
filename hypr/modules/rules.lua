@@ -169,15 +169,6 @@ for i = 1, 5 do
 end
 
 hl.window_rule({
-  name = "float-discord",
-  match = { class = "^(discord|Discord|vesktop|Vesktop)$", fullscreen = false },
-  float = true,
-  center = true,
-  size = { "monitor_w*0.75", "monitor_h*0.8" },
-  workspace = "4",
-})
-
-hl.window_rule({
   name = "float-unityhub",
   match = { class = "^(unityhub|UnityHub)$", fullscreen = false },
   float = true,
@@ -187,10 +178,11 @@ hl.window_rule({
 })
 
 local workspace_assignments = {
+  { ws = "4", match = { class = "^(discord|Discord|vesktop|Vesktop)$" } },
   { ws = "1", match = { class = "^(brave-origin|Brave-origin|brave-browser|Brave-browser|brave|Brave|zen)$" } },
   { ws = "2", match = { class = "^(foot|footclient|org\\.zen0x\\.tmux|Alacritty|WezTerm|kitty)$" } },
   { ws = "3", match = { class = "^code$" } },
-  { ws = "4", match = { class = "^(Spotify)$" } },
+  { ws = "6", match = { class = "^(Spotify)$" } },
   { ws = "5", match = { class = "^(steam|Steam|heroic|Heroic)$" } },
   { ws = "6", match = { title = "^(.*\\.exe|.*game|.*Game)$" } },
 }

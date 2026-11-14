@@ -8,18 +8,19 @@ image="$(mktemp --suffix=.png)"
 trap 'rm -f -- "$image"' EXIT
 case "$mode" in
   region|smart)
-    if command -v hyprshot >/dev/null 2>&1; then
-      hyprshot -m region --raw > "$image"
-    else
-      geometry="$(slurp)" || exit 0
-      [[ -n "$geometry" ]] || exit 0
-      grim -g "$geometry" "$image"
-    fi ;;
-  window) hyprshot -m window --raw > "$image" ;;
+    geometry="$(slurp)" || exit 0
+    [[ -n "$geometry" ]] || exit 0
+    grim -g "$geometry" "$image" ;;
+  window)
+    # Hyprshot's cleanup can return failure after a successful raw capture.
+    hyprshot -m window --raw | cat > "$image" || [[ -s "$image" ]] ;;
   fullscreen) grim "$image" ;;
 esac
 [[ -s "$image" ]] || exit 0
+output="$shots_dir/$(date +'%Y-%m-%d_%H-%M-%S-%N').png"
+cp -- "$image" "$output"
+wl-copy --type image/png < "$image"
 satty --filename "$image" \
-  --output-filename "$shots_dir/%Y-%m-%d_%H-%M-%S-%f.png" \
+  --output-filename "$output" \
   --copy-command wl-copy --actions-on-enter save-to-clipboard,save-to-file,exit \
   --resize 900x600 --floating-hack

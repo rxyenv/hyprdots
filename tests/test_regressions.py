@@ -143,11 +143,12 @@ class ScreenshotTests(unittest.TestCase):
     def test_all_modes_without_wayland(self):
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
-            for cmd in ('hyprshot', 'grim', 'satty'):
+            for cmd in ('hyprshot', 'grim', 'satty', 'wl-copy', 'slurp'):
                 script = base / cmd
                 script.write_text('#!/bin/sh\nprintf "%s\\n" "$0 $*" >> "$CALL_LOG"\n'
-                                  + ('printf png\n' if cmd == 'hyprshot' else '')
-                                  + ('printf png > "$1"\n' if cmd == 'grim' else ''))
+                                  + ('printf png; exit 1\n' if cmd == 'hyprshot' else '')
+                                  + ('printf "0,0 100x100"\n' if cmd == 'slurp' else '')
+                                  + ('for output do :; done; printf png > "$output"\n' if cmd == 'grim' else ''))
                 script.chmod(0o755)
             env = {**os.environ, 'PATH': str(base) + ':' + os.environ['PATH'],
                    'CALL_LOG': str(base / 'calls'), 'XDG_PICTURES_DIR': str(base)}
@@ -157,7 +158,13 @@ class ScreenshotTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
             calls = (base / 'calls').read_text()
             self.assertIn('-m window --raw', calls)
+            self.assertNotIn('-m region --raw', calls)
+            self.assertEqual(calls.count('/slurp '), 2)
             self.assertEqual(calls.count('/satty '), 4)
+            self.assertEqual(calls.count('/wl-copy --type image/png'), 4)
+            saved = list((base / 'Screenshots').glob('*.png'))
+            self.assertEqual(len(saved), 4)
+            self.assertTrue(all(image.read_bytes() == b'png' for image in saved))
 
 
 if __name__ == '__main__':

@@ -32,6 +32,10 @@ hl.config({
       vibrancy = 0.1696,
     },
   },
+  render = {
+    -- Avoid monitor profile switches and brief blackouts on fullscreen video.
+    send_content_type = false,
+  },
   animations = {
     enabled = false,
   },

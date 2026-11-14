@@ -217,3 +217,6 @@ path=("$HOME/.local/bin" "$HOME/.cargo/bin" "$HOME/.spicetify" $path)
 
 # Unity CLI
 case ":${PATH}:" in *:"$HOME/.local/bin":*) ;; *) export PATH="$HOME/.local/bin:$PATH" ;; esac
+
+export PATH=$PATH:/home/aman/.spicetify
+export PATH=$PATH:~/.spicetify
