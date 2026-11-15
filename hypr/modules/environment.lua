@@ -5,8 +5,8 @@ hl.config({
 })
 
 hl.env("XCURSOR_SIZE", "24")
-hl.env("XCURSOR_THEME", "capitaine-cursors-white")
-hl.env("HYPRCURSOR_THEME", "capitaine-cursors-white")
+hl.env("XCURSOR_THEME", "Capitaine-Cursors-White")
+hl.env("HYPRCURSOR_THEME", "Capitaine-Cursors-White")
 hl.env("HYPRCURSOR_SIZE", "24")
 hl.env("ELECTRON_OZONE_PLATFORM_HINT", "wayland")
 hl.env("NIXOS_OZONE_WL", "1")

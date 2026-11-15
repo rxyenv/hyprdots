@@ -40,7 +40,9 @@ do not enable competing Wi-Fi managers. Bluetooth needs an active bluetooth serv
 DP-1 1080p/300 Hz override. Adjust the override to match your display.
 Set `HYPR_TOUCHPAD_NAME` in your UWSM environment to the exact name shown by
 `hyprctl devices` if you want adaptive touchpad acceleration with flat mouse input.
-Optional CS2 plugin requires an ABI-compatible build via `CSGO_VULKAN_FIX_PLUGIN`.
+Optional CS2 plugin loads `~/.local/lib/hyprland/csgo-vulkan-fix.so`, or an
+ABI-compatible build specified by `CSGO_VULKAN_FIX_PLUGIN`. Rebuild after
+Hyprland ABI updates. Its configured CS2 resolution is 1920×1080.
 Overview shortcut falls back to the launcher when its plugin is unavailable.
 
 Zsh validates inherited locale settings against installed locales. Invalid

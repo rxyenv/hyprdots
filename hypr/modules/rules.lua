@@ -47,7 +47,7 @@ hl.window_rule({
 hl.window_rule({
   name = "plain-floating-windows",
   match = { float = true },
-  rounding = 20,
+  rounding = 0,
   border_size = 1,
 })
 
